@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include "ESP8266TimerInterrupt.h"
-#include "WebSocketsClient.h"
+#include <ESP8266HTTPClient.h>
 #include "wifi.h"
 #include "heater.h"
 
@@ -9,12 +9,27 @@
 #define HEATER2_PIN 0
 #define AC_FREQUENCY 50
 
+typedef struct State {
+  float temperature;
+  bool pump_state;
+} State;
+
 volatile uint8_t gv_heater_duty_cycle = 0;
 volatile uint8_t gv_heater_cycle_count = 0;
+volatile State set_state = {
+  .temperature = 0.0,
+  .pump_state = false
+};
+volatile State is_state = {
+  .temperature = 0.0,
+  .pump_state = false
+};
+volatile HTTPClient http;
 
 WiFiEventHandler gotIpEventHandler, disconnectedEventHandler;
 ESP8266Timer ITimer;
-WebSocketsClient webSocket;
+WiFiClient client;
+
 
 #define USE_SERIAL Serial
 
@@ -40,43 +55,21 @@ void IRAM_ATTR TimerHandler()
   }
 }
 
-void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
-	switch(type) {
-		case WStype_DISCONNECTED:
-			USE_SERIAL.printf("[WSc] Disconnected!\n");
-			break;
-		case WStype_CONNECTED: {
-			USE_SERIAL.printf("[WSc] Connected to url: %s\n", payload);
-
-			// send message to server when Connected
-			webSocket.sendTXT("Connected");
-		}
-			break;
-		case WStype_TEXT:
-			USE_SERIAL.printf("[WSc] get text: %s\n", payload);
-
-			// send message to server
-			// webSocket.sendTXT("message here");
-			break;
-		case WStype_BIN:
-			USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
-			hexdump(payload, length);
-
-			// send data to server
-			// webSocket.sendBIN(payload, length);
-			break;
-    case WStype_PING:
-        // pong will be send automatically
-        USE_SERIAL.printf("[WSc] get ping\n");
-        break;
-    case WStype_PONG:
-        // answer to a ping we send
-        USE_SERIAL.printf("[WSc] get pong\n");
-        break;
-    }
-
+void IRAM_ATTR StatusUpdate()
+{
+  uint8_t payload[5];
+  payload[0] = is_state.temperature;
+  payload[5] = (uint8_t) is_state.pump_state;
+  int httpResponseCode = http.POST(payload, sizeof payload);
+  if (httpResponseCode>0) {
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode);
+    String payload = http.getString(); // Need to get bytes
+  }
+  http.end();
 }
+
 
 void setup() {
   setUpHeater(HEATER1_PIN);
@@ -99,26 +92,14 @@ void setup() {
 
 	//Serial.setDebugOutput(true);
 	USE_SERIAL.setDebugOutput(true);
+    
+  http.begin(client, "192.168.0.TODO");
+  http.addHeader("Content-Type", "application/octet-stream");
 
-	webSocket.begin("192.168.0.169", 8000, "/");
-
-	// event handler
-	webSocket.onEvent(webSocketEvent);
-
-	// try ever 5000 again if connection has failed
-	webSocket.setReconnectInterval(5000);
-  
-  // start heartbeat (optional)
-  // ping server every 15000 ms
-  // expect pong from server within 3000 ms
-  // consider connection disconnected if pong is not received 2 times
-  webSocket.enableHeartbeat(15000, 3000, 2);
-  
-  // ITimer.attachInterrupt(AC_FREQUENCY, TimerHandler);
-  // ITimer.attachInterrupt(5, StatusUpdate);
-  // setHeaTerDutyCycle(50);
+  ITimer.attachInterrupt(AC_FREQUENCY, TimerHandler);
+  ITimer.attachInterrupt(5, StatusUpdate);
 }
 
 void loop() {
-  webSocket.loop();
+ 
 }
