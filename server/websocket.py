@@ -1,14 +1,12 @@
 import asyncio
 import websockets
+from controller import BrewController
 
-async def echo(websocket):
-    async for message in websocket:
-        print(message)
-        await websocket.send(message)
-
+controller = BrewController()
+    
 async def main():
     print('starting up!')
-    async with websockets.serve(echo, "0.0.0.0", 80):
+    async with websockets.serve(controller.process_messages, "0.0.0.0", 80):
         await asyncio.Future()  # run forever
 
 asyncio.run(main())
