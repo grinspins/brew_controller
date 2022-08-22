@@ -10,8 +10,14 @@ class State:
     temperature: float
     pump_state: bool
     remaining_time: timedelta = None
+    # probably need padding
     MCU_STATE_FORMAT: ClassVar[str] = "<f?"
 
+    def __repr__(self):
+        return (
+            f"<State temperature={self.temperature} pump_state="
+            f"{self.pump_state} remaining_time={self.remaining_time}" 
+        )
 
     def to_struct(self):
         return struct.pack(
@@ -21,8 +27,8 @@ class State:
         )
 
     @classmethod
-    def from_struct(cls, struct):
-        temperature, pump_state = struct.unpack(State.MCU_STATE_FORMAT, struct)
+    def from_bytes(cls, binary):
+        temperature, pump_state = struct.unpack(State.MCU_STATE_FORMAT, binary)
         return cls(temperature, pump_state)
 
     def to_json(self):
@@ -47,7 +53,7 @@ class BrewController:
         self.is_pump_state = False
         self.set_pump_state = False
         self.is_temp = None
-        self.set_temp = 0
+        self.set_temp = 0.0
         self.set_time = timedelta(0)
 
     @property

@@ -9,7 +9,7 @@ app = Flask(__name__)
 def micro_controller():
     brew_controller.update_internal_state()
     if request.method == 'POST':
-        state = State.from_struct(request.get_data())
+        state = State.from_bytes(request.get_data())
         brew_controller.is_state = state
     return brew_controller.set_state.to_struct()
 
