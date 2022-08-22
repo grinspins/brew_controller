@@ -1,23 +1,14 @@
-const websocket = new WebSocket("ws://localhost:8000");
+const URL = "http://localhost:8000/controller/state"
 
-const program  = [
-    {temperature: 10, time: 10},
-    {temperature: 20, time: 15}
-]
-
-const msg = `init;${JSON.stringify(program)}`
-
-function send() {
-    if (websocket.readyState == 1) {
-        console.log('sending')
-        websocket.send(msg);
-    } else {
-        console.log('waitng')
-    }
-    
+const updateState = () => {
+  fetch(URL).then((response) => response.json())
+  .then((data) => {
+    const div = document.getElementById("test")
+    div.innerText = JSON.stringify(data);
+  });
 }
 
-setInterval(send, 5000);
+setInterval(updateState, 5000);
 
 
 
