@@ -2,12 +2,15 @@
 #include <ESP8266WiFi.h>
 #include "ESP8266TimerInterrupt.h"
 #include <ESP8266HTTPClient.h>
+#include <credentials.h>
 #include "wifi.h"
 #include "heater.h"
 
 #define HEATER1_PIN 2
 #define HEATER2_PIN 0
 #define AC_FREQUENCY 50
+#define POST_FREQUENCY 0.2
+#define ssid ""
 
 typedef struct State {
   float temperature;
@@ -16,22 +19,21 @@ typedef struct State {
 
 volatile uint8_t gv_heater_duty_cycle = 0;
 volatile uint8_t gv_heater_cycle_count = 0;
-volatile State set_state = {
+volatile bool gv_do_post = false;
+
+State set_state = {
   .temperature = 0.0,
   .pump_state = false
 };
-volatile State is_state = {
+State is_state = {
   .temperature = 0.0,
   .pump_state = false
 };
-volatile HTTPClient http;
 
 WiFiEventHandler gotIpEventHandler, disconnectedEventHandler;
 ESP8266Timer ITimer;
 WiFiClient client;
-
-
-#define USE_SERIAL Serial
+HTTPClient http;
 
 // TODO probably also put into heater.h
 void setHeaTerDutyCycle(uint8_t duty_cycle) {
@@ -49,23 +51,29 @@ void IRAM_ATTR TimerHandler()
   if (cur_duty_cyle == gv_heater_duty_cycle) {
     heatersOff();
   } 
-  if (cur_duty_cyle  == 100) {
+  if (cur_duty_cyle == 100) {
     heatersOn();
     gv_heater_cycle_count = 0;
   }
 }
 
-
-void IRAM_ATTR StatusUpdate()
+void IRAM_ATTR EnablePost()
 {
+  gv_do_post = true;
+}
+
+void StatusUpdate()
+{
+  http.begin(client, "http://192.168.0.169:5000/mcu");
+  http.addHeader("Content-Type", "application/octet-stream");
   uint8_t payload[5];
-  payload[0] = is_state.temperature;
-  payload[5] = (uint8_t) is_state.pump_state;
+  memcpy(payload, &is_state.temperature, 4);
+  payload[4] = (uint8_t) is_state.pump_state;
   int httpResponseCode = http.POST(payload, sizeof payload);
-  if (httpResponseCode>0) {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    String payload = http.getString(); // Need to get bytes
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+    memcpy(&set_state.temperature, &response, 4);
+    set_state.pump_state = (bool) response[4];
   }
   http.end();
 }
@@ -77,7 +85,6 @@ void setup() {
 
   gotIpEventHandler = WiFi.onStationModeGotIP([](const WiFiEventStationModeGotIP& event)
   {
-    // event.ip has ip address
     heatersOn();
   });
 
@@ -86,20 +93,19 @@ void setup() {
     heatersOff();
   });
 
-  connectWifi("papayaplaya", "Abbiefeia1!");
-  // server address, port and URL
-  USE_SERIAL.begin(115200);
+  connectWifi(WIFI_SSID, WIFI_PW);
+  Serial.begin(115200);
 
-	//Serial.setDebugOutput(true);
-	USE_SERIAL.setDebugOutput(true);
-    
-  http.begin(client, "192.168.0.TODO");
-  http.addHeader("Content-Type", "application/octet-stream");
-
+	Serial.setDebugOutput(true);
   ITimer.attachInterrupt(AC_FREQUENCY, TimerHandler);
-  ITimer.attachInterrupt(5, StatusUpdate);
+  ITimer.attachInterrupt(POST_FREQUENCY, EnablePost);
 }
 
 void loop() {
- 
+  if (gv_do_post) {
+    StatusUpdate();
+    gv_do_post = false;
+  }
+  digitalWrite(HEATER1_PIN, set_state.pump_state);
+  is_state.pump_state = set_state.pump_state;
 }
