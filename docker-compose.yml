@@ -13,10 +13,9 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
     build:
-      context: ./server
+      context: ./backend
     volumes:
-      - ./server:/app
+      - ./backend:/app
     ports:
       - 5000:80
-    command: python3 server.py
-    
+    command: uvicorn brew_app.main:app

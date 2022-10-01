@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 import json
 import struct
@@ -13,13 +14,13 @@ class State:
     # probably need padding
     MCU_STATE_FORMAT: ClassVar[str] = "<f?"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<State temperature={self.temperature} pump_state="
-            f"{self.pump_state} remaining_time={self.remaining_time}" 
+            f"{self.pump_state} remaining_time={self.remaining_time}"
         )
 
-    def to_struct(self):
+    def to_struct(self) -> bytes:
         return struct.pack(
             State.MCU_STATE_FORMAT,
             self.temperature,
@@ -27,11 +28,11 @@ class State:
         )
 
     @classmethod
-    def from_bytes(cls, binary):
+    def from_bytes(cls: State, binary: bytes) -> State:
         temperature, pump_state = struct.unpack(State.MCU_STATE_FORMAT, binary)
         return cls(temperature, pump_state)
 
-    def to_json(self):
+    def to_json(self) -> str:
         return json.dumps({
             "temperature": self.temperature,
             "pump_state": self.pump_state,
@@ -39,7 +40,7 @@ class State:
         })
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls: State, data: dict) -> State:
         remaining_time = timedelta(minutes=data["remaining_time"])
         return cls(data["temperature"], data["pump_state"], remaining_time)
 
@@ -111,6 +112,10 @@ class BrewController:
     def update_internal_state(self):
         if self.remaining_time < timedelta(0):
             self.next_step()
-    
+
 
 brew_controller = BrewController()
+
+
+async def controller() -> BrewController:
+    return brew_controller

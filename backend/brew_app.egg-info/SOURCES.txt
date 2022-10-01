@@ -1,0 +1,6 @@
+pyproject.toml
+brew_app.egg-info/PKG-INFO
+brew_app.egg-info/SOURCES.txt
+brew_app.egg-info/dependency_links.txt
+brew_app.egg-info/requires.txt
+brew_app.egg-info/top_level.txt
