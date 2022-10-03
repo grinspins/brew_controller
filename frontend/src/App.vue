@@ -1,5 +1,21 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
+import { useBrewStore } from "./stores/brew";
+
+const brewState = useBrewStore();
+
+const ws = new WebSocket("ws:app/state");
+ws.onmessage = (event) => {
+  brewState.state = JSON.parse(event.data);
+  brewState.error = false;
+};
+ws.onerror = () => {
+  brewState.error = true;
+};
+
+setInterval(() => {
+  ws.send("");
+}, 1000);
 
 const links = [
   {
@@ -41,6 +57,7 @@ const links = [
     <v-main>
       <v-container fluid>
         <RouterView />
+        <!-- Bottom nav for is state v-footer -->
       </v-container>
     </v-main>
   </v-app>
