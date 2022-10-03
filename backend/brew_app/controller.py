@@ -1,53 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass
-import json
-import struct
 from datetime import datetime, timedelta
-from typing import ClassVar
-
-
-@dataclass
-class State:
-    temperature: float
-    pump_state: bool
-    remaining_time: timedelta = None
-    # probably need padding
-    MCU_STATE_FORMAT: ClassVar[str] = "<f?"
-
-    def __repr__(self) -> str:
-        return (
-            f"<State temperature={self.temperature} pump_state="
-            f"{self.pump_state} remaining_time={self.remaining_time}"
-        )
-
-    def to_struct(self) -> bytes:
-        return struct.pack(
-            State.MCU_STATE_FORMAT,
-            self.temperature,
-            self.pump_state
-        )
-
-    @classmethod
-    def from_bytes(cls: State, binary: bytes) -> State:
-        temperature, pump_state = struct.unpack(State.MCU_STATE_FORMAT, binary)
-        return cls(temperature, pump_state)
-
-    def to_json(self) -> str:
-        return json.dumps({
-            "temperature": self.temperature,
-            "pump_state": self.pump_state,
-            "remaining_time": self.remaining_time.total_seconds() / 60
-        })
-
-    @classmethod
-    def from_dict(cls: State, data: dict) -> State:
-        remaining_time = timedelta(minutes=data["remaining_time"])
-        return cls(data["temperature"], data["pump_state"], remaining_time)
+from brew_app.models import State, ProgramStep
 
 
 class BrewController:
     def __init__(self):
-        self.program = []
+        self.program: list[ProgramStep] = []
         self.step = None
         self.step_start_time = None
 
@@ -58,34 +16,39 @@ class BrewController:
         self.set_time = timedelta(0)
 
     @property
-    def elapsed_time(self):
+    def elapsed_time(self) -> timedelta:
         if self.step_start_time:
             now = datetime.now()
             return now - self.step_start_time
         return timedelta(0)
 
     @property
-    def remaining_time(self):
+    def remaining_time(self) -> timedelta:
         if self.step is not None:
             return self.set_time - self.elapsed_time
         return timedelta(0)
 
     @property
-    def set_state(self):
+    def set_state(self) -> State:
         return State(self.set_temp, self.set_pump_state)
 
     @set_state.setter
-    def set_state(self, state):
+    def set_state(self, state: State):
         self.set_temp = state.temperature
         self.set_pump_state = state.pump_state
         self.set_time = state.remaining_time
 
     @property
-    def is_state(self):
-        return State(self.is_temp, self.is_pump_state, self.remaining_time)
+    def is_state(self) -> State:
+        return State(
+            temperature=self.is_temp,
+            pump_state=self.is_pump_state,
+            remaining_time=self.remaining_time,
+            step_idx=self.step
+        )
 
     @is_state.setter
-    def is_state(self, state):
+    def is_state(self, state: State):
         self.is_temp = state.temperature
         self.is_pump_state = state.pump_state
 
@@ -105,8 +68,9 @@ class BrewController:
             self.step_start_time = None
         else:
             prgrm = self.program[self.step]
-            self.set_temp = prgrm["temperature"]
-            self.set_time = timedelta(minutes=prgrm["time"])
+            self.set_temp = prgrm.temperature
+            self.set_time = timedelta(minutes=prgrm.time)
+            self.set_pump_state = prgrm.pump_state
             self.step_start_time = datetime.now()
 
     def update_internal_state(self):
