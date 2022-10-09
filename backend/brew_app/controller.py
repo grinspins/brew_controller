@@ -2,10 +2,23 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from brew_app.models import State, ProgramStep
 
+# TODO wait during mesh in and mesh out
+HYSTERESIS = 0.5
+
 
 class BrewController:
     def __init__(self):
-        self.program: list[ProgramStep] = []
+        self.program: list[ProgramStep] = [
+            ProgramStep(name="Mesh In", temperature=45.0, time=10.0,
+                        pump_state=False, wait=True, fixed=True),
+            ProgramStep(name="Protease", temperature=54.0, time=5.0),
+            ProgramStep(name="Combi", temperature=68.0, time=60.0),
+            ProgramStep(name="Mesh Out", temperature=78.0, time=15.0,
+                        fixed=True, wait=True, pump_state=False),
+            ProgramStep(name="Boil", temperature=100.0,
+                        time=75.0, fixed=True, pump_state=False),
+        ]
+        print(self.program)
         self.step = None
         self.step_start_time = None
 
