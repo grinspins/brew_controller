@@ -9,8 +9,10 @@ from pydantic import BaseModel
 class ProgramStep(BaseModel):
     temperature: float
     time: float
-    pump_state: float
+    pump_state: bool = True
     name: str
+    fixed: bool = False
+    wait: bool = False
 
 
 class State(BaseModel):
