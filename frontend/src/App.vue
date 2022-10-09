@@ -1,21 +1,39 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
 import { useBrewStore } from "./stores/brew";
+import { STATE_URL } from "./urls";
+import Footer from "./components/Footer.vue";
 
 const brewState = useBrewStore();
 
-const ws = new WebSocket("ws:app/state");
-ws.onmessage = (event) => {
-  brewState.state = JSON.parse(event.data);
-  brewState.error = false;
-};
-ws.onerror = () => {
-  brewState.error = true;
+let intervalId: number | undefined = undefined;
+
+const stateTick = (ws: WebSocket) => {
+  intervalId = setInterval(() => {
+    if (ws.readyState !== WebSocket.OPEN) {
+      clearInterval(intervalId);
+      brewState.error = true;
+      connectWebsocket();
+    }
+    ws.send("{}");
+  }, 1000);
 };
 
-setInterval(() => {
-  ws.send("");
-}, 1000);
+const connectWebsocket = () => {
+  const ws = new WebSocket(STATE_URL);
+  ws.onmessage = (event) => {
+    brewState.state = JSON.parse(event.data);
+    brewState.error = false;
+  };
+  ws.onerror = () => {
+    brewState.error = true;
+  };
+  ws.onopen = () => {
+    stateTick(ws);
+  };
+};
+
+connectWebsocket();
 
 const links = [
   {
@@ -25,10 +43,10 @@ const links = [
     icon: "mdi-home",
   },
   {
-    title: "About",
-    value: "about",
-    to: "/about",
-    icon: "mdi-information",
+    title: "Program",
+    value: "program",
+    to: "/program",
+    icon: "mdi-list-box",
   },
 ];
 </script>
@@ -54,11 +72,11 @@ const links = [
         </v-list-item>
       </v-list>
     </v-navigation-drawer>
-    <v-main>
-      <v-container fluid>
+    <v-main class="h-screen">
+      <v-container class="pb-12" fluid>
         <RouterView />
-        <!-- Bottom nav for is state v-footer -->
       </v-container>
     </v-main>
+    <Footer app />
   </v-app>
 </template>
