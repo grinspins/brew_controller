@@ -1,10 +1,19 @@
 import asyncio
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, Body
+from fastapi.middleware.cors import CORSMiddleware
 from brew_app.models import State, ProgramStep
 from brew_app.controller import BrewController, controller, brew_controller
 
 ticks: set[asyncio.Task] = set()
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex="http://localhost:\d+",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def stop_tick():
