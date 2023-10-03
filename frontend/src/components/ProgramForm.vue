@@ -1,70 +1,90 @@
 <script setup lang="ts">
 import axios from "axios";
+import { ref } from "vue";
 import { useProgramStore } from "@/stores/program";
 import { PROGRAM_URL } from "@/urls";
 import ProgramFormStep from "./ProgramFormStep.vue";
 
-interface StepResponse {
+interface Step {
   name: string;
   temperature: number;
   time: number;
   pump_state: boolean;
-  fixed: boolean;
   wait: boolean;
 }
 
 const programStore = useProgramStore();
+const formValid = ref(true);
+
+const patchProgram = (data: Step[]) => {
+  const program = data.map((step) => ({
+    name: step.name,
+    temperature: step.temperature,
+    time: step.time,
+    pumpState: step.pump_state,
+    wait: step.wait,
+  }));
+  programStore.program = program;
+  programStore.error = false;
+  programStore.loaded = true;
+};
 
 axios
-  .get<StepResponse[]>(PROGRAM_URL)
+  .get<Step[]>(PROGRAM_URL)
   .then((response) => {
-    const program = response.data.map((step) => ({
-      name: step.name,
-      temperature: step.temperature,
-      time: step.time,
-      pumpState: step.pump_state,
-      fixed: step.fixed,
-      wait: step.wait,
-    }));
-    programStore.program = program;
-    programStore.error = false;
-    programStore.loaded = true;
+    patchProgram(response.data);
   })
   .catch((error) => {
     programStore.error = true;
     programStore.loaded = true;
   });
 
-const removeStep = (idx: number) => {
-  // TODO can't get $patch to work for this
-  programStore.program = programStore.program.filter((_, i) => i !== idx);
+const submit = async (evt: SubmitEvent) => {
+  if (!formValid.value) return;
+  programStore.loaded = false;
+  const formData = new FormData(evt.target as HTMLFormElement);
+  const data: { [key: string]: string }[] = [];
+  for (const [nameIdx, value] of formData.entries()) {
+    const [name, idxStr] = nameIdx.split(".");
+    const idx = Number(idxStr);
+    const stepData = data[idx] || {};
+    stepData[name] = value as string;
+    data[idx] = stepData;
+  }
+  const newProgram: Step[] = data.map((stepData) => ({
+    name: stepData.name,
+    temperature: Number(stepData.temperature),
+    time: Number(stepData.time),
+    pump_state: Boolean(stepData.pump_state),
+    wait: Boolean(stepData.wait),
+  }));
+  try {
+    const resp = await axios.post<Step[]>(PROGRAM_URL, newProgram);
+    patchProgram(resp.data);
+  } catch (errors) {
+    programStore.error = true;
+  }
+  programStore.loaded = true;
 };
 </script>
 <template>
   <v-card title="Program" subtitle="Create a program to run">
-    <v-card-item v-if="!programStore.loaded">
-      <div class="text-center">
-        <v-progress-circular
-          indeterminate
-          color="primary"
-        ></v-progress-circular>
-      </div>
-    </v-card-item>
-    <v-card-item v-else-if="programStore.error">
+    <v-card-item v-if="programStore.error">
       <v-alert density="compact" type="error">Unable to load program.</v-alert>
     </v-card-item>
-    <div v-else>
-      <v-form>
+    <v-card-text v-else>
+      <v-form @submit.prevent="submit" v-model="formValid">
         <ProgramFormStep
           v-for="(step, idx) in programStore.program"
-          :key="step.name"
-          @change="(value: string | number, name: string) => {programStore.program[idx][name] = value}"
-          @delete="removeStep(idx)"
+          :key="`${step.name}.${idx}`"
+          @delete="programStore.removeStep(idx)"
+          :idx="idx"
           :name="step.name"
           :temperature="step.temperature"
           :time="step.time"
-          :fixed="step.fixed"
           :pumpState="step.pumpState"
+          :loading="!programStore.loaded"
+          :wait="step.wait"
         >
         </ProgramFormStep>
         <v-card-actions>
@@ -77,9 +97,9 @@ const removeStep = (idx: number) => {
           >
             <v-icon>mdi-plus</v-icon>
           </v-btn>
-          <v-btn type="submit">Submit</v-btn>
+          <v-btn type="submit" variant="outlined">Submit</v-btn>
         </v-card-actions>
       </v-form>
-    </div>
+    </v-card-text>
   </v-card>
 </template>

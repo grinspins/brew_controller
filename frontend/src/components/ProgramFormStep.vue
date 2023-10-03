@@ -1,85 +1,89 @@
 <script setup lang="ts">
 const props = defineProps({
+  idx: Number,
   name: String,
   temperature: Number,
   time: Number,
-  fixed: Boolean,
   pumpState: Boolean,
+  loading: Boolean,
+  wait: Boolean,
 });
 
-const emit = defineEmits(["change", "delete"]);
-
-const checkHandler = (evt: Event, name: string) => {
-  const target = evt.target as HTMLInputElement;
-  emit("change", Boolean(target.checked), name);
-};
-
-const changeHandler = (evt: Event, name: string) => {
-  const target = evt.target as HTMLInputElement;
-  emit("change", target.value, name);
-};
-
-const numberChangeHandler = (evt: Event, name: string) => {
-  const target = evt.target as HTMLInputElement;
-  emit("change", Number(target.value), name);
-};
+const emit = defineEmits(["delete"]);
 </script>
 
 <template>
-  <v-row>
-    <v-col cols="8" md="2">
-      <v-text-field
-        label="Name"
-        :model-value="props.name"
-        @change="changeHandler($event, 'name')"
-        :rules="[(v) => !!v || 'Name is required']"
-        :disabled="props.fixed"
-      ></v-text-field>
-    </v-col>
-    <v-col cols="8" md="2">
-      <v-text-field
-        label="Temperature"
-        @change="numberChangeHandler($event, 'temperature')"
-        :model-value="props.temperature"
-        type="number"
-        step="0.1"
-        suffix="℃"
-        max="100"
-        min="0"
-      ></v-text-field>
-    </v-col>
-    <v-col cols="8" md="2">
-      <v-text-field
-        label="Time"
-        @change="numberChangeHandler($event, 'time')"
-        :model-value="props.time"
-        type="number"
-        suffix="min"
-        step="1"
-        min="5"
-        max="120"
-      ></v-text-field>
-    </v-col>
-    <v-col cols="8" md="1">
-      <v-switch
-        @change="checkHandler($event, 'pumpState')"
-        :model-value="props.pumpState"
-        label="Pump"
-        color="success"
-        :disabled="props.fixed"
-      ></v-switch>
-    </v-col>
-    <v-col cols="8" md="1">
-      <v-btn
-        variant="outlined"
-        color="error"
-        size="x-small"
-        icon
-        :disabled="props.fixed"
-        @click="$emit('delete')"
-      >
-        <v-icon>mdi-close</v-icon>
-      </v-btn>
-    </v-col>
-  </v-row>
+  <v-container>
+    <v-row dense>
+      <v-col cols="8" md="3">
+        <v-text-field
+          label="Name"
+          :name="`name.${idx}`"
+          :model-value="props.name"
+          :rules="[(v) => !!v || 'Name is required']"
+          :loading="props.loading"
+          hide-details="auto"
+        ></v-text-field>
+      </v-col>
+      <v-col cols="8" md="3">
+        <v-text-field
+          label="Temperature"
+          :model-value="props.temperature"
+          type="number"
+          step="0.1"
+          suffix="℃"
+          :name="`temperature.${idx}`"
+          :loading="props.loading"
+          :rules="[(v) => v >= 0 || v <= 100 || 'Must be between 0 and 100']"
+          hide-details="auto"
+        ></v-text-field>
+      </v-col>
+      <v-col cols="8" md="3">
+        <v-text-field
+          label="Time"
+          :model-value="props.time"
+          type="number"
+          suffix="min"
+          step="1"
+          :name="`time.${idx}`"
+          :rules="[(v) => v > 1 || v <= 120 || 'Must be between 1 and 120']"
+          :loading="props.loading"
+          hide-details="auto"
+        ></v-text-field>
+      </v-col>
+    </v-row>
+    <v-row dense>
+      <v-col cols="3">
+        <v-switch
+          :model-value="props.pumpState"
+          label="Pump"
+          color="success"
+          :loading="props.loading"
+          :name="`pump_state.${idx}`"
+          hide-details="auto"
+        ></v-switch>
+      </v-col>
+      <v-col cols="3">
+        <v-switch
+          :model-value="props.wait"
+          label="Wait"
+          color="success"
+          :loading="props.loading"
+          :name="`wait.${idx}`"
+          hide-details="auto"
+        ></v-switch>
+      </v-col>
+      <v-col cols="3" class="d-flex justify-center">
+        <v-btn
+          variant="outlined"
+          color="error"
+          size="x-small"
+          icon
+          @click="$emit('delete')"
+        >
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>

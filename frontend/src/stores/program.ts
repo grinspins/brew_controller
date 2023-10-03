@@ -1,4 +1,5 @@
-import { reactive, ref } from "vue";
+import { ref } from "vue";
+import type { Ref } from "vue";
 import { defineStore } from "pinia";
 
 export interface Step {
@@ -6,13 +7,12 @@ export interface Step {
   temperature: number,
   time: number,
   pumpState: boolean,
-  fixed: boolean,
   wait: boolean
 }
 
 export const useProgramStore = defineStore("program", () => {
   
-  const program: Step[] = reactive([]);
+  const program: Ref<Step[]> = ref([]);
   let error = ref(false); 
   let loaded = ref(false)
 
@@ -21,14 +21,16 @@ export const useProgramStore = defineStore("program", () => {
       name: "",
       temperature: 20,
       time: 15,
-      fixed: false,
       wait: false,
       pumpState: true
     }
-    const programLength = this.program.length
-    this.program.splice(programLength - 2, 0, emptyStep)
+    this.program.push(emptyStep)
   }
 
-  return { program, error, loaded, addStep };
+  function removeStep (idx: number) {
+    this.program = this.program.filter((_, i) => i !== idx);
+  };
+
+  return { program, error, loaded, addStep, removeStep };
 });
 

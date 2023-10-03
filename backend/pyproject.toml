@@ -1,16 +1,16 @@
-[build-system]
-requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "brew_app"
-requires-python = ">=3.10"
-classifiers = [
-    "Programming Language :: Python :: 3.10",
-]
-dependencies = [
-    "fastapi",
-    "websockets",
-    "uvicorn",
-]
-dynamic = ["version"]
+version = "0.1.0"
+description = ""
+authors = ["grinsipinsi <grinsipinsi@github.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.103.2"
+websockets = "^11.0.3"
+uvicorn = {extras = ["standard"], version = "^0.23.2"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

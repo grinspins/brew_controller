@@ -1,4 +1,4 @@
-FROM python:3.10.6-slim-bullseye
+FROM python:3.11-slim-bullseye
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -8,8 +8,10 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ /etc/timezone
 RUN mkdir /app
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip3 install -r requirements.txt
+RUN pip3 install poetry==1.6.1
+
+COPY pyproject.toml poetry.lock .
+RUN poetry install
 
 COPY . .
 

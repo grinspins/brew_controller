@@ -1,7 +1,7 @@
 import asyncio
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
-from brew_app.models import State, ProgramStep
+from brew_app.models import State, ProgramStep, McuState, SetState
 from brew_app.controller import BrewController, controller, brew_controller
 
 ticks: set[asyncio.Task] = set()
@@ -34,30 +34,36 @@ async def tick():
 
 
 @app.get("/mcu")
-async def get_mcu(controller: BrewController = Depends(controller)):
-    return controller.set_state.to_struct()
+async def get_mcu(controller: BrewController = Depends(controller)) -> bytes:
+    return controller.mcu_state.to_struct()
 
 
-@app.post('/mcu')
-async def post_mcu(mcu_state: bytes = Body(), controller: BrewController = Depends(controller)):
-    state = State.from_bytes(mcu_state)
+@app.post("/mcu")
+async def post_mcu(
+    mcu_state: bytes = Body(), controller: BrewController = Depends(controller)
+) -> bytes:
+    state = McuState.from_bytes(mcu_state)
     controller.is_state = state
-    return controller.set_state.to_struct()
+    return controller.mcu_state.to_struct()
 
 
 @app.get("/program")
-async def get_program(controller: BrewController = Depends(controller)):
+async def get_program(
+    controller: BrewController = Depends(controller),
+) -> list[ProgramStep]:
     return controller.program
 
 
-@app.get("/program")
-async def post_program(program: list[ProgramStep], controller: BrewController = Depends(controller)):
+@app.post("/program")
+async def post_program(
+    program: list[ProgramStep], controller: BrewController = Depends(controller)
+) -> list[ProgramStep]:
     controller.program = program
     return controller.program
 
 
-@app.post('/start')
-async def start(controller: BrewController = Depends(controller)):
+@app.post("/start")
+async def start(controller: BrewController = Depends(controller)) -> State:
     if controller.step is not None:
         raise HTTPException(status_code=400, detail="Program already started")
     try:
@@ -70,13 +76,24 @@ async def start(controller: BrewController = Depends(controller)):
     return controller.is_state
 
 
+@app.get("/set_state")
+async def get_set_state(controller: BrewController = Depends(controller)) -> SetState:
+    return controller.set_state
+
+
+@app.post("/set_state")
+async def post_set_state(
+    state: SetState, controller: BrewController = Depends(controller)
+) -> SetState:
+    controller.set_state = state
+    return controller.set_state
+
+
 @app.websocket("/state")
-async def websocket_endpoint(websocket: WebSocket, controller: BrewController = Depends(controller)):
+async def state_socket(
+    websocket: WebSocket, controller: BrewController = Depends(controller)
+):
     await websocket.accept()
     while True:
-        state_data = await websocket.receive_json()
-        if state_data:
-            # Does this make sense? mixing is state and set state
-            state = State.from_dict(state_data)
-            controller.set_state = state
-        await websocket.send_json(controller.is_state.to_json())
+        await websocket.receive_text()
+        await websocket.send_json(controller.is_state.model_dump())
