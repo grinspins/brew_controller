@@ -15,7 +15,7 @@ const emit = defineEmits(["delete"]);
 <template>
   <v-container>
     <v-row dense>
-      <v-col cols="8" md="3">
+      <v-col cols="8" sm="3">
         <v-text-field
           label="Name"
           :name="`name.${idx}`"
@@ -25,7 +25,7 @@ const emit = defineEmits(["delete"]);
           hide-details="auto"
         ></v-text-field>
       </v-col>
-      <v-col cols="8" md="3">
+      <v-col cols="8" sm="3">
         <v-text-field
           label="Temperature"
           :model-value="props.temperature"
@@ -38,7 +38,7 @@ const emit = defineEmits(["delete"]);
           hide-details="auto"
         ></v-text-field>
       </v-col>
-      <v-col cols="8" md="3">
+      <v-col cols="8" sm="3">
         <v-text-field
           label="Time"
           :model-value="props.time"

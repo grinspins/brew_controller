@@ -26,6 +26,7 @@ const connectWebsocket = () => {
       pumpState: data.pump_state,
       step: data.step_idx,
       remainingTime: data.remaining_time,
+      heating: data.heating,
       error: false,
     });
   };

@@ -1,13 +1,11 @@
 from datetime import datetime, timedelta
-import math
 from brew_app.models import State, ProgramStep, McuState, SetState
 
-# TODO wait during mesh in and mesh out
 HYSTERESIS = 0.5
 
 mock_p = 0.5
 mock_i = 0.05
-mock_d = 0.01
+mock_d = 0.001
 i_err = 0.0
 last_err = 0.0
 
@@ -15,16 +13,16 @@ last_err = 0.0
 def mock_temp(c):
     global i_err
     global last_err
-    err = abs(c.set_temp - (c.is_temp or 0.0))
+    err = c.set_temp - (c.is_temp or 0.0)
     i_err += err
     d_err = last_err - err
     return mock_p * err + mock_i * i_err + mock_d * d_err
 
 
-def timedelta_minutes(td: timedelta | None) -> int | None:
+def timedelta_minutes(td: timedelta | None) -> float | None:
     if td is None:
         return None
-    return math.ceil(td.total_seconds() / 60)
+    return td.total_seconds() / 60
 
 
 class BrewController:
@@ -50,13 +48,14 @@ class BrewController:
         ]
 
         self.step = None
-        self.step_start_time = None
+        self.step_start_time: None | datetime = None
 
         self.is_pump_state = False
         self.set_pump_state = False
-        self.is_temp = None
+        self.is_temp = 0.0
         self.set_temp = 0.0
         self.duration: timedelta | None = None
+        self.is_heating = False
 
     @property
     def elapsed_time(self) -> timedelta:
@@ -66,7 +65,7 @@ class BrewController:
         return timedelta(0)
 
     @property
-    def remaining_time(self) -> timedelta:
+    def remaining_time(self) -> float | None:
         if self.step is not None:
             delta = self.duration - self.elapsed_time
             return timedelta_minutes(delta)
@@ -100,6 +99,7 @@ class BrewController:
             pump_state=self.is_pump_state,
             remaining_time=self.remaining_time,
             step_idx=self.step,
+            heating=self.is_heating,
         )
 
     @is_state.setter
@@ -120,16 +120,26 @@ class BrewController:
             self.set_temp = prgrm.temperature
             self.duration = timedelta(minutes=prgrm.time)
             self.set_pump_state = prgrm.pump_state
-            self.step_start_time = datetime.now()
-        except KeyError:
-            self.step = None
-            self.program = []
-            self.set_temp = 0
-            self.duration = timedelta(0)
+            self.is_heating = True
             self.step_start_time = None
+        except KeyError:
+            self.stop()
+
+    def stop(self):
+        self.step = None
+        self.program = []
+        self.set_temp = 0
+        self.duration = None
+        self.step_start_time = None
+        self.is_heating = False
 
     def update_internal_state(self):
-        if self.remaining_time < timedelta(0):
+        if self.is_temp + HYSTERESIS >= self.set_temp:
+            if self.is_heating is True:
+                self.step_start_time = datetime.now()
+            self.is_heating = False
+        remaining_time = self.remaining_time
+        if remaining_time and remaining_time < 0:
             self.next_step()
 
 

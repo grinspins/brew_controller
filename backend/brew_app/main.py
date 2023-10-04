@@ -1,7 +1,7 @@
 import asyncio
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
-from brew_app.models import State, ProgramStep, McuState, SetState
+from brew_app.models import ProgramStep, McuState, SetState
 from brew_app.controller import BrewController, controller, brew_controller
 
 ticks: set[asyncio.Task] = set()
@@ -9,7 +9,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex="http://localhost:\d+",
+    allow_origin_regex=r"http://localhost:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -17,6 +17,7 @@ app.add_middleware(
 
 
 def stop_tick():
+    global ticks
     for task in ticks:
         task.cancel()
     ticks = set()
@@ -29,8 +30,8 @@ async def tick():
         return
     await asyncio.sleep(1)
     task = asyncio.create_task(tick())
-    ticks.add(task)
     task.add_done_callback(ticks.discard)
+    ticks.add(task)
 
 
 @app.get("/mcu")
@@ -62,8 +63,9 @@ async def post_program(
     return controller.program
 
 
+# TODO stop
 @app.post("/start")
-async def start(controller: BrewController = Depends(controller)) -> State:
+async def start(controller: BrewController = Depends(controller)) -> SetState:
     if controller.step is not None:
         raise HTTPException(status_code=400, detail="Program already started")
     try:
@@ -71,9 +73,16 @@ async def start(controller: BrewController = Depends(controller)) -> State:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     task = asyncio.create_task(tick())
-    ticks.add(task)
     task.add_done_callback(ticks.discard)
-    return controller.is_state
+    ticks.add(task)
+    return controller.set_state
+
+
+@app.post("/stop")
+async def stop(controller: BrewController = Depends(controller)) -> SetState:
+    controller.stop()
+    stop_tick()
+    return controller.set_state
 
 
 @app.get("/set_state")

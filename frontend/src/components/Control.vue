@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import axios from "axios";
 import { ref } from "vue";
-import { SET_STATE_URL } from "@/urls";
+import { SET_STATE_URL, START_URL, STOP_URL } from "@/urls";
 import { useSetStateStore } from "@/stores/setState";
 import { useStateStore } from "@/stores/state";
 
 interface SetStateResponse {
-  temperature: number;
+  temperature: number | null;
   pump_state: boolean;
   duration: number | null;
 }
@@ -59,6 +59,29 @@ const submit = async (evt: SubmitEvent) => {
     setStateStore.loaded = true;
   }
 };
+
+// TODO error handling and such
+const startProgram = async () => {
+  setStateStore.loaded = false;
+  try {
+    const resp = await axios.post<SetStateResponse>(START_URL);
+    patchStore(resp.data);
+  } catch (errors) {
+    setStateStore.error = true;
+    setStateStore.loaded = true;
+  }
+};
+
+const stopProgram = async () => {
+  setStateStore.loaded = false;
+  try {
+    const resp = await axios.post<SetStateResponse>(STOP_URL);
+    patchStore(resp.data);
+  } catch (errors) {
+    setStateStore.error = true;
+    setStateStore.loaded = true;
+  }
+};
 </script>
 
 <template>
@@ -72,7 +95,7 @@ const submit = async (evt: SubmitEvent) => {
       <v-form @submit.prevent="submit" v-model="formValid">
         <v-container>
           <v-row dense>
-            <v-col cols="8" md="3">
+            <v-col cols="8" sm="3">
               <v-text-field
                 label="Temperature"
                 :model-value="setStateStore.temperature"
@@ -86,7 +109,7 @@ const submit = async (evt: SubmitEvent) => {
                 :loading="!setStateStore.loaded"
               ></v-text-field>
             </v-col>
-            <v-col cols="8" md="3">
+            <v-col cols="8" sm="3">
               <v-text-field
                 label="Time"
                 :model-value="setStateStore.duration"
@@ -100,7 +123,7 @@ const submit = async (evt: SubmitEvent) => {
             </v-col>
           </v-row>
           <v-row dense>
-            <v-col cols="8" md="3">
+            <v-col cols="8" sm="3">
               <v-switch
                 :model-value="setStateStore.pumpState"
                 label="Pump"
@@ -108,17 +131,23 @@ const submit = async (evt: SubmitEvent) => {
                 name="pump_state"
               ></v-switch>
             </v-col>
-            <v-col cols="8" md="3" align-self="center">
+            <v-col cols="8" sm="3" align-self="center">
               <v-btn type="submit">Submit</v-btn>
             </v-col>
           </v-row>
         </v-container>
       </v-form>
       <v-card-actions>
-        <v-btn variant="outlined" v-if="stateStore.running" color="red"
+        <v-btn
+          variant="outlined"
+          v-if="stateStore.running"
+          color="red"
+          @click="stopProgram"
           >Abort</v-btn
         >
-        <v-btn v-else variant="outlined">Start Program</v-btn>
+        <v-btn v-else variant="outlined" @click="startProgram"
+          >Start Program</v-btn
+        >
       </v-card-actions>
     </v-card-text>
   </v-card>

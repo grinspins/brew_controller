@@ -7,7 +7,7 @@ const state = useStateStore();
 const program = useProgramStore();
 
 const temperature = computed(() => {
-  if (!state.temperature) {
+  if (state.temperature === null) {
     return "N/A";
   }
   return `${state.temperature.toFixed(2)} ℃`;
@@ -23,7 +23,11 @@ const remaining = computed(() => {
 const step = computed(() => {
   const idx = state.step;
   if (typeof idx === "number") {
-    return program.program?.[idx].name;
+    const name = program.program[idx]?.name;
+    if (state.heating) {
+      return `Heating to ${name}`;
+    }
+    return name;
   }
   return "N/A";
 });
@@ -31,7 +35,6 @@ const step = computed(() => {
 
 <template>
   <v-footer class="bg-grey-lighten-1">
-    <!-- TODO alert larger than footer -->
     <div v-if="state.error">
       <v-alert density="compact" type="error"
         >Connection to server lost.</v-alert
